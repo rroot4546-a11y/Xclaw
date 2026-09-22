@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0B0F17" />
+    <title>Xclaw</title>
+    <link rel="icon" href="/assets/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+
+    <header class="topbar" id="topbar">
+      <div class="brand">
+        <span class="brand-mark">X</span>
+        <div class="brand-text">
+          <h1>Xclaw</h1>
+          <span class="brand-sub" id="brandSub">منصة الوكلاء</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="chip" id="appVersion">v1.0.0</span>
+        <button id="scanBtn" class="icon-btn" title="التحقق من التحديثات">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="updateBanner" class="banner hidden">
+      <div class="banner-body">
+        <span class="banner-icon">●</span>
+        <div>
+          <strong>تحديثات متاحة</strong>
+          <span id="updateSummary"></span>
+        </div>
+        <button id="viewUpdatesBtn" class="btn ghost">عرض</button>
+      </div>
+    </div>
+
+    <main class="content" id="view">
+      <section class="hero">
+        <p class="hero-tag">أربعة وكلاء ذكاء اصطناعي · جهازك</p>
+        <h2>تشغيل وكلائك المفضلين من هاتفك</h2>
+        <p class="hero-sub">Codex، OpenCode، OpenClaw وClaude — بواجهة واحدة حديثة وسلسة.</p>
+      </section>
+
+      <section class="agents-grid" id="agentsGrid">
+        <div class="skeleton" style="height:150px"></div>
+        <div class="skeleton" style="height:150px"></div>
+        <div class="skeleton" style="height:150px"></div>
+        <div class="skeleton" style="height:150px"></div>
+      </section>
+
+      <section class="panel updates-panel">
+        <div class="panel-head">
+          <h3>التحديثات</h3>
+          <span class="muted small" id="checkedText"></span>
+        </div>
+        <div id="updatesList" class="updates-list">
+          <p class="muted">اضغط زر الفحص بالأعلى للتحقق من آخر الإصدارات.</p>
+        </div>
+      </section>
+    </main>
+
+    <template id="agentCardTpl">
+      <article class="agent-card">
+        <div class="agent-head">
+          <span class="agent-icon"></span>
+          <span class="agent-dot"></span>
+        </div>
+        <h3 class="agent-name"></h3>
+        <p class="agent-ver muted"></p>
+        <div class="agent-actions">
+          <button class="btn primary run-btn">تشغيل</button>
+          <button class="btn ghost update-btn hidden">تحديث</button>
+        </div>
+      </article>
+    </template>
+
+    <section class="console hidden" id="console">
+      <div class="console-head">
+        <span class="console-title" id="consoleTitle">وحدة التحكم</span>
+        <div class="console-actions">
+          <button id="clearBtn" class="icon-btn" title="مسح">🗑</button>
+          <button id="closeConsole" class="icon-btn" title="إغلاق">✕</button>
+        </div>
+      </div>
+      <div class="console-body" id="consoleBody"></div>
+      <form class="console-input" id="consoleForm">
+        <textarea id="promptInput" rows="1" placeholder="اكتب طلبك هنا…" enterkeyhint="send"></textarea>
+        <button type="submit" class="btn primary" id="sendBtn">إرسال</button>
+      </form>
+    </section>
+
+    <footer class="foot">
+      <span>Xclaw © 2026</span>
+      <span class="muted" id="footStatus"></span>
+    </footer>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

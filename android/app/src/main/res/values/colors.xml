@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="xclaw_background">#0B0F17</color>
+    <color name="xclaw_surface">#151B27</color>
+    <color name="xclaw_primary">#A78BFA</color>
+    <color name="xclaw_secondary">#22D3EE</color>
+    <color name="xclaw_statusbar">#0B0F17</color>
+</resources>
