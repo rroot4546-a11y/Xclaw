@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /*
  * Xclaw gateway
- * Serves the Xclaw web UI, exposes agent + update APIs, and proxies the
- * bundled codex-web-local UI (/codex). Runs inside the Termux prefix env.
+ * Serves the Xclaw web UI, exposes agent + update APIs. Runs inside the
+ * Termux prefix env.
  *
  * Endpoints:
  *   GET  /                     Xclaw web UI (RTL, dark)
@@ -10,7 +10,6 @@
  *   POST /api/check            check npm/GitHub for tool updates (SSE-ish JSON)
  *   POST /api/agent/run        run an agent CLI, streaming output (SSE)
  *   POST /api/update           npm install -g <pkg>@latest, streaming (SSE)
- *   /codex/*                   reverse proxy to codex-web-local on 18923
  */
 'use strict';
 
@@ -22,7 +21,6 @@ const { spawn, spawnSync } = require('child_process');
 const args = JSON.parse(JSON.stringify(process.argv.slice(2)));
 const portIdx = args.indexOf('--port');
 const PORT = portIdx >= 0 ? parseInt(args[portIdx + 1], 10) : 18925;
-const CODX_PORT = process.env.CODEX_WEB_PORT || 18923;
 
 const PREFIX = process.env.PREFIX || '/data/user/0/com.xclaw.app/files/usr';
 const HOME = process.env.HOME || '/data/user/0/com.xclaw.app/files/home';
@@ -31,7 +29,6 @@ const CACHE_DIR = path.join(HOME, '.xclaw');
 const CACHE_FILE = path.join(CACHE_DIR, 'updates.json');
 
 const AGENTS = [
-  { key: 'codex',    label: 'Codex',     cmd: 'codex',    pkg: '@openai/codex',        args: (p) => ['exec', '--skip-git-repo-check', p] },
   { key: 'opencode', label: 'OpenCode',  cmd: 'opencode', pkg: 'opencode-ai',           args: (p) => ['run', p] },
   { key: 'claude',   label: 'Claude',    cmd: 'claude',   pkg: '@anthropic-ai/claude-code', args: (p) => ['-p', p] },
   { key: 'openclaw', label: 'OpenClaw',  cmd: 'claw',     pkg: 'openclaw',              args: (p) => ['exec', p] },
@@ -276,26 +273,6 @@ function serveStatic(req, res, urlPath) {
   fs.createReadStream(file).pipe(res);
 }
 
-function proxyCodex(req, res) {
-  const target = http.request(
-    {
-      host: '127.0.0.1',
-      port: CODX_PORT,
-      path: req.url,
-      method: req.method,
-      headers: req.headers,
-    },
-    (tres) => {
-      res.writeHead(tres.statusCode, tres.headers);
-      tres.pipe(res);
-    },
-  );
-  target.on('error', () => {
-    res.writeHead(502); res.end('codex-web-local not running');
-  });
-  req.pipe(target);
-}
-
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const p = url.pathname;
@@ -314,7 +291,6 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/agent/run') { await handleAgentRun(req, res); return; }
     if (p === '/api/update') { await handleUpdate(req, res); return; }
-    if (p === '/codex' || p.startsWith('/codex/')) { proxyCodex(req, res); return; }
     serveStatic(req, res, p);
   } catch (e) {
     res.writeHead(500); res.end(String(e && e.message ? e.message : e));

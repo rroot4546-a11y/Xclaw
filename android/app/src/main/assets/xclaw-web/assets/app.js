@@ -3,10 +3,10 @@
 
   const $ = (id) => document.getElementById(id);
   const ICONS = {
-    codex: 'C', opencode: 'O', openclaw: 'L', claude: 'A',
+    opencode: 'O', openclaw: 'L', claude: 'A',
   };
   const LABELS = {
-    codex: 'Codex', opencode: 'OpenCode', openclaw: 'OpenClaw', claude: 'Claude',
+    opencode: 'OpenCode', openclaw: 'OpenClaw', claude: 'Claude',
   };
 
   let agents = [];
