@@ -292,18 +292,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Step 3: Install Codex CLI
-        if (!serverManager.isCodexInstalled()) {
-            updateStatus("Installing Codex CLI…", "This may take a few minutes")
-            val codexOk = serverManager.installCodex { msg -> updateDetail(msg) }
-            if (!codexOk) {
-                throw RuntimeException("Failed to install Codex")
-            }
-        }
-
-        // Ensure codex wrapper script exists
-        serverManager.ensureCodexWrapperScript()
-
         // Step 2e: Install OpenCode CLI
         if (!serverManager.isOpenCodeInstalled()) {
             updateStatus("Installing OpenCode…", "This may take a few minutes")
@@ -322,74 +310,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Step 3a: Extract web UI from APK assets (every launch)
-        updateStatus("Updating web UI…")
-        serverManager.installServerBundle { msg -> updateDetail(msg) }
-
-        // Step 3b: Install native platform binary
-        if (!serverManager.isPlatformBinaryInstalled()) {
-            updateStatus("Installing Codex platform binary…")
-            val binOk = serverManager.installPlatformBinary { msg -> updateDetail(msg) }
-            if (!binOk) {
-                throw RuntimeException("Failed to install Codex platform binary")
-            }
-        }
-        updateStatus("Codex ready")
-
-        // Step 3c: Write full-access config and create default workspace
-        serverManager.ensureFullAccessConfig()
-        serverManager.ensureDefaultWorkspace()
-
-        // Step 4: Start CONNECT proxy (needed for native binary DNS/TLS)
+        // Step 3: Start CONNECT proxy (network shim for Node agents)
         updateStatus("Starting network proxy…")
         if (!serverManager.startProxy()) {
             throw RuntimeException("Failed to start network proxy")
         }
 
-        // Step 5: Authenticate via `codex login`
-        updateStatus("Checking authentication…")
-        if (!serverManager.isLoggedIn()) {
-            updateStatus("Login required — signing in…")
-            val authOk = serverManager.loginWithUrl(
-                onLoginUrl = { url ->
-                    runOnUiThread {
-                        showLoading(false)
-                        webView.visibility = View.VISIBLE
-                        webView.loadUrl(url)
-                        updateStatus("Finish sign-in in the window…")
-                    }
-                },
-                onProgress = { msg -> updateDetail(msg) },
-            )
-            if (!authOk && !serverManager.isLoggedIn()) {
-                updateStatus("Sign-in didn't complete — enter API key manually")
-                val apiKey = requestApiKey()
-                if (apiKey.isBlank()) {
-                    throw RuntimeException("No API key provided")
-                }
-                val loginOk = serverManager.loginWithApiKey(apiKey)
-                if (!loginOk) {
-                    throw RuntimeException("Login failed — check your API key")
-                }
-            }
-        }
-        updateStatus("Authenticated")
-
-        // Step 6: Health check — do NOT abort setup if OpenAI is unreachable.
-        // Surface the real failure detail (notification) and let the user
-        // continue into the app, where they can retry from the console.
-        updateStatus("Verifying API access…", "Sending test message")
-        val healthOk = serverManager.healthCheck { msg -> updateDetail(msg) }
-        if (!healthOk) {
-            val detail = serverManager.lastHealthError ?: "unknown error"
-            Log.e(TAG, "Health check failed: $detail")
-            updateStatus("OpenAI unreachable — continuing", "Retry from the console anytime")
-            runOnUiThread { postNotification("Xclaw: OpenAI unreachable", detail) }
-        } else {
-            updateStatus("API verified")
-        }
-
-        // Step 7: Configure and start OpenClaw
+        // Step 4: Configure and start OpenClaw
         if (serverManager.isOpenClawInstalled()) {
             updateStatus("Configuring OpenClaw…")
             serverManager.configureOpenClawAuth()
@@ -401,35 +328,16 @@ class MainActivity : AppCompatActivity() {
             serverManager.startOpenClawControlUiServer()
         }
 
-        // Step 8: Start web server
-        updateStatus("Starting server…")
-        val started = serverManager.startServer()
-        if (!started) {
-            throw RuntimeException("Failed to start server")
-        }
-
-        // Step 9: Wait for ready
-        updateStatus("Waiting for server…")
-        val ready = serverManager.waitForServer(timeoutMs = 90_000)
-        if (!ready) {
-            throw RuntimeException("Server did not start in time")
-        }
-
-        // Step 10: Start Xclaw gateway + wait
+        // Step 5: Start Xclaw gateway + wait
         updateStatus("Starting Xclaw gateway…")
         serverManager.startXclawGateway()
         val gwReady = serverManager.waitForGateway(timeoutMs = 30_000)
 
-        // Step 11: Show web UI (Xclaw gateway if ready, else fall back to codex UI)
+        // Step 6: Show Xclaw web UI
         runOnUiThread {
             showLoading(false)
             webView.visibility = View.VISIBLE
-            val base = if (gwReady) {
-                "http://127.0.0.1:${CodexServerManager.GATEWAY_PORT}/"
-            } else {
-                "http://127.0.0.1:${CodexServerManager.SERVER_PORT}/"
-            }
-            webView.loadUrl(base)
+            webView.loadUrl("http://127.0.0.1:${CodexServerManager.GATEWAY_PORT}/")
         }
     }
 
