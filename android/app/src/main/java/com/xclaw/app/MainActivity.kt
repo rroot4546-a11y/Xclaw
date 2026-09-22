@@ -11,11 +11,14 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -124,6 +127,14 @@ class MainActivity : AppCompatActivity() {
             databaseEnabled = true
             allowFileAccess = false
             setSupportZoom(false)
+            setSupportMultipleWindows(true)
+        }
+
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                setAcceptThirdPartyCookies(webView, true)
+            }
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -136,6 +147,35 @@ class MainActivity : AppCompatActivity() {
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
                 Log.d(TAG, "[WebView] ${msg.sourceId()}:${msg.lineNumber()} ${msg.message()}")
+                return true
+            }
+
+            override fun onCreateWindow(
+                view: WebView,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: Message,
+            ): Boolean {
+                val popup = WebView(view.context)
+                popup.settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    setSupportMultipleWindows(false)
+                }
+                popup.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(v: WebView, url: String): Boolean = false
+                }
+                (resultMsg.obj as WebView.WebViewTransport).webView = popup
+                resultMsg.sendToTarget()
+
+                val container = webView.parent as? ViewGroup
+                if (container != null) {
+                    popup.layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                    container.addView(popup)
+                }
                 return true
             }
         }
@@ -309,17 +349,20 @@ class MainActivity : AppCompatActivity() {
         // Step 5: Authenticate via `codex login`
         updateStatus("Checking authentication…")
         if (!serverManager.isLoggedIn()) {
-            updateStatus("Login required — opening browser…")
+            updateStatus("Login required — signing in…")
             val authOk = serverManager.loginWithUrl(
                 onLoginUrl = { url ->
                     runOnUiThread {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        showLoading(false)
+                        webView.visibility = View.VISIBLE
+                        webView.loadUrl(url)
+                        updateStatus("Finish sign-in in the window…")
                     }
                 },
                 onProgress = { msg -> updateDetail(msg) },
             )
             if (!authOk && !serverManager.isLoggedIn()) {
-                updateStatus("Browser login failed — enter API key manually")
+                updateStatus("Sign-in didn't complete — enter API key manually")
                 val apiKey = requestApiKey()
                 if (apiKey.isBlank()) {
                     throw RuntimeException("No API key provided")
