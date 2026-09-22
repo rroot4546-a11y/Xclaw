@@ -375,13 +375,19 @@ class MainActivity : AppCompatActivity() {
         }
         updateStatus("Authenticated")
 
-        // Step 6: Health check
+        // Step 6: Health check — do NOT abort setup if OpenAI is unreachable.
+        // Surface the real failure detail (notification) and let the user
+        // continue into the app, where they can retry from the console.
         updateStatus("Verifying API access…", "Sending test message")
         val healthOk = serverManager.healthCheck { msg -> updateDetail(msg) }
         if (!healthOk) {
-            throw RuntimeException("API health check failed — Codex could not reach OpenAI")
+            val detail = serverManager.lastHealthError ?: "unknown error"
+            Log.e(TAG, "Health check failed: $detail")
+            updateStatus("OpenAI unreachable — continuing", "Retry from the console anytime")
+            runOnUiThread { postNotification("Xclaw: OpenAI unreachable", detail) }
+        } else {
+            updateStatus("API verified")
         }
-        updateStatus("API verified")
 
         // Step 7: Configure and start OpenClaw
         if (serverManager.isOpenClawInstalled()) {

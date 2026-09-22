@@ -1300,17 +1300,43 @@ WEOF
     // ── Health check ────────────────────────────────────────────────────────
 
     /**
-     * Send a minimal prompt ("hi") to Codex in non-interactive (exec) mode
-     * via the CONNECT proxy. Confirms the API key is valid and the native
-     * binary can reach OpenAI.
+     * Last health check failure detail (exit tail). Populated when a check
+     * fails — main UI surfaces this to explain why OpenAI is unreachable.
+     */
+    var lastHealthError: String? = null
+
+    /**
+     * Send a minimal prompt ("hi") to Codex in non-interactive (exec) mode,
+     * via the CONNECT proxy, with a direct-connection fallback if the proxy
+     * path fails. Confirms the API key is valid and the native binary can
+     * reach OpenAI.
      */
     fun healthCheck(onProgress: (String) -> Unit): Boolean {
-        onProgress("Sending test message…")
+        lastHealthError = null
 
+        val viaProxy = runHealthCheck(useProxy = true, onProgress)
+        if (viaProxy.ok) return true
+
+        onProgress("Proxy path failed — retrying direct…")
+        val direct = runHealthCheck(useProxy = false, onProgress)
+        if (direct.ok) return true
+
+        lastHealthError = "via proxy: ${viaProxy.tail}\n—\n direct: ${direct.tail}"
+        return false
+    }
+
+    private data class HealthAttempt(val ok: Boolean, val tail: String)
+
+    private fun runHealthCheck(useProxy: Boolean, onProgress: (String) -> Unit): HealthAttempt {
         val paths = BootstrapInstaller.getPaths(context)
         val env = buildEnvironment(paths).toMutableMap()
-        env["HTTPS_PROXY"] = "http://127.0.0.1:$PROXY_PORT"
-        env["HTTP_PROXY"] = "http://127.0.0.1:$PROXY_PORT"
+        if (useProxy) {
+            env["HTTPS_PROXY"] = "http://127.0.0.1:$PROXY_PORT"
+            env["HTTP_PROXY"] = "http://127.0.0.1:$PROXY_PORT"
+        } else {
+            env.remove("HTTPS_PROXY")
+            env.remove("HTTP_PROXY")
+        }
 
         val shell = "${paths.prefixDir}/bin/sh"
         val cmd = "${codexBinPath()} exec --skip-git-repo-check \"say hi\" 2>&1"
@@ -1335,14 +1361,13 @@ WEOF
 
         val exitCode = proc.waitFor()
         val output = sb.toString().trim()
-        Log.i(TAG, "Health check exit=$exitCode output=$output")
+        Log.i(TAG, "Health check proxy=$useProxy exit=$exitCode output=$output")
 
-        if (exitCode != 0) {
-            Log.e(TAG, "Health check failed with exit code $exitCode")
-            return false
-        }
-
-        return output.isNotEmpty()
+        val tail = output.lines().takeLast(4).joinToString("\n")
+        return HealthAttempt(
+            ok = exitCode == 0 && output.isNotEmpty(),
+            tail = tail.ifBlank { "exit=$exitCode, no output" },
+        )
     }
 
     // ── Server lifecycle ────────────────────────────────────────────────────
