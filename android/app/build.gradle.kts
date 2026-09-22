@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -23,7 +25,7 @@ android {
         if (!ksB64.isNullOrBlank()) {
             create("release") {
                 val ksFile = rootProject.file("key.jks")
-                ksFile.writeBytes(java.util.Base64.getDecoder().decode(ksB64))
+                ksFile.writeBytes(Base64.getDecoder().decode(ksB64))
                 storeFile = ksFile
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASS")
                 keyAlias = System.getenv("ANDROID_KEY_ALIAS")
