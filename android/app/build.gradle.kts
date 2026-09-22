@@ -45,6 +45,12 @@ android {
         }
     }
 
+    lint {
+        // targetSdk 28 is intentional (W^X / binary execution from app data dir).
+        // This is a sideload-only app, not distributed via Google Play.
+        checkReleaseBuilds = false
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
